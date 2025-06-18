@@ -1,0 +1,24 @@
+# slumber.yml
+profiles:
+  local:
+    default: true
+    data:
+      url: "http://localhost:8080"
+requests:
+  get: !request
+    method: GET
+    url: "{{url}}/tasks" 
+  
+  post: !request
+    method: POST
+    url: "{{url}}/tasks"
+    body: !json { "title": "sometitle", "status":"", "desc":"hello there" }
+  upd: !request
+    method: PUT
+    url: "{{url}}/tasks/4"
+    body: !json {"title":"updtitle", "desc":"OFASFOSOFA"}
+  upd2: !request
+    method: PUT
+    url: "{{url}}/tasks/"
+    body: !json {"title":"updtitle", "status":"", "desc":"OFASFOSOFA"}
+
