@@ -12,7 +12,7 @@ requests:
   post: !request
     method: POST
     url: "{{url}}/tasks"
-    body: !json { "title": "sometitle", "status":"", "desc":"hello there" }
+    body: !json { "title": "sometitle", "status":"new", "desc":"hello there" }
   upd: !request
     method: PUT
     url: "{{url}}/tasks/4"

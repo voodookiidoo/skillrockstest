@@ -27,9 +27,9 @@ func MustConnect() *pgx.Conn {
 	if err != nil {
 		panic(err)
 	}
-	c, err := pgx.ConnectConfig(context.Background(), config)
-	if err != nil {
+	if c, err := pgx.ConnectConfig(context.Background(), config); err != nil {
 		panic(err)
+	} else {
+		return c
 	}
-	return c
 }

@@ -15,3 +15,7 @@ services:
       db:
         required: true
         condition: service_started
+  cache:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
