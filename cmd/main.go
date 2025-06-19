@@ -9,7 +9,7 @@ import (
 func main() {
 	f := fiber.New()
 	a := app.NewApp()
-
+	defer a.Close()
 	f.Use(logger.New(logger.ConfigDefault))
 
 	f.
