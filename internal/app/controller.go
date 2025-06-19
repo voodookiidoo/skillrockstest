@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
@@ -13,6 +14,10 @@ import (
 type App struct {
 	repo *repository.Repository
 	lg   *zap.Logger
+}
+
+func (a *App) Close() error {
+	return errors.Join(a.lg.Sync(), a.repo.Close())
 }
 
 func NewApp(conn *pgx.Conn, redConn *redis.Client) *App {

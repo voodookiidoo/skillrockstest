@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"skillrockstest/internal/dto"
@@ -12,6 +13,12 @@ import (
 type Repository struct {
 	db *pgx.Conn
 	rd *redis.Client
+}
+
+func (r *Repository) Close() error {
+	return errors.Join(
+		r.db.Close(context.Background()),
+		r.rd.Close())
 }
 
 func NewRepository(db *pgx.Conn, conn *redis.Client) *Repository {
