@@ -60,7 +60,7 @@ func (r *Repository) GetAll(ctx context.Context) ([]dto.Task, error) {
 func (r *Repository) CreateTask(ctx context.Context, req dto.TaskRequest) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 	defer tx.Rollback(ctx)
 	now := time.Now()
@@ -136,6 +136,7 @@ func (r *Repository) Get(c context.Context, id int) (*dto.Task, error) {
 		return task, err
 	}
 	q := r.db.QueryRow(c, "SELECT * FROM tasks WHERE id = $1 LIMIT 1", id)
+
 	t := new(dto.Task)
 
 	if err = q.Scan(

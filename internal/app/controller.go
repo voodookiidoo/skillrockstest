@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 	"skillrockstest/internal/dto"
 	"skillrockstest/internal/repository"
@@ -118,14 +119,17 @@ func (a *App) Get(c *fiber.Ctx) error {
 	}
 	task, err := a.repo.Get(c.Context(), id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
 		a.lg.Error(err.Error())
-		return c.SendStatus(500)
+		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	if b, err := task.MarshalJSON(); err != nil {
 		a.lg.Error(err.Error())
 		return c.SendStatus(fiber.StatusInternalServerError)
 	} else {
 		c.Write(b)
-		return c.SendStatus(200)
+		return c.SendStatus(fiber.StatusOK)
 	}
 }
