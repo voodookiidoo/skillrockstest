@@ -1,4 +1,4 @@
-create table tasks
+create table if not exists tasks
 (
     id          SERIAL PRIMARY KEY,
     title       TEXT NOT NULL,

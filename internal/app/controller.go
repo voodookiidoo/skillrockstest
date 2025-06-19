@@ -3,8 +3,6 @@ package app
 import (
 	"errors"
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"skillrockstest/internal/dto"
 	"skillrockstest/internal/repository"
@@ -20,8 +18,8 @@ func (a *App) Close() error {
 	return errors.Join(a.lg.Sync(), a.repo.Close())
 }
 
-func NewApp(conn *pgx.Conn, redConn *redis.Client) *App {
-	return &App{repo: repository.NewRepository(conn, redConn), lg: logger.DefaultLogger()}
+func NewApp() *App {
+	return &App{repo: repository.NewRepository(), lg: logger.DefaultLogger()}
 }
 
 func (a *App) GetAll(c *fiber.Ctx) error {
@@ -51,6 +49,7 @@ func (a *App) Post(c *fiber.Ctx) error {
 			a.lg.Error(err.Error())
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
+
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
@@ -71,10 +70,12 @@ func (a *App) Post(c *fiber.Ctx) error {
 func (a *App) Delete(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
+		a.lg.Error(err.Error())
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	deleted, err := a.repo.DeleteTask(c.Context(), id)
 	if err != nil {
+		a.lg.Error(err.Error())
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	if deleted == 0 {
@@ -90,10 +91,12 @@ func (a *App) Put(c *fiber.Ctx) error {
 	}
 	req := new(dto.TaskRequest)
 	if err = req.UnmarshalJSON(c.Body()); err != nil {
+		a.lg.Error(err.Error())
 		if _, err = c.Status(fiber.StatusBadRequest).WriteString("invalid data format"); err != nil {
+			a.lg.Error(err.Error())
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
-		return err
+		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	if err = req.Validate(); err != nil {
 		if _, err = c.Status(fiber.StatusBadRequest).WriteString(err.Error()); err != nil {
@@ -101,12 +104,9 @@ func (a *App) Put(c *fiber.Ctx) error {
 		}
 		return err
 	}
-	cached, err := a.repo.UpdateTask(c.Context(), *req, id)
-	if err != nil {
+
+	if err := a.repo.UpdateTask(c.Context(), *req, id); err != nil {
 		return c.SendStatus(fiber.StatusInternalServerError)
-	}
-	if !cached {
-		a.lg.Error("unable to save to cache")
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -122,6 +122,7 @@ func (a *App) Get(c *fiber.Ctx) error {
 		return c.SendStatus(500)
 	}
 	if b, err := task.MarshalJSON(); err != nil {
+		a.lg.Error(err.Error())
 		return c.SendStatus(fiber.StatusInternalServerError)
 	} else {
 		c.Write(b)

@@ -4,17 +4,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"skillrockstest/internal/app"
-	"skillrockstest/pkg/db"
 )
 
 func main() {
 	f := fiber.New()
-	pgConn := db.MustConnect()
-	redConn := db.MustConnectRedis()
-	a := app.NewApp(pgConn, redConn)
-
-	//f.Use(requestLogger)
-	// регаем мидлварь
+	a := app.NewApp()
 
 	f.Use(logger.New(logger.ConfigDefault))
 

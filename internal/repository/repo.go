@@ -3,28 +3,35 @@ package repository
 import (
 	"context"
 	"errors"
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"skillrockstest/internal/dto"
+	"skillrockstest/pkg/db"
 	"strconv"
 	"time"
 )
 
 type Repository struct {
-	db *pgx.Conn
-	rd *redis.Client
+	db       *pgx.Conn
+	rd       *redis.Client
+	migrator *migrate.Migrate
 }
 
 func (r *Repository) Close() error {
 	return errors.Join(
 		r.db.Close(context.Background()),
+		r.migrator.Down(),
 		r.rd.Close())
 }
 
-func NewRepository(db *pgx.Conn, conn *redis.Client) *Repository {
+func NewRepository() *Repository {
+	pg, migrator := db.MustConnect()
+	rd := db.MustConnectRedis()
 	return &Repository{
-		db: db,
-		rd: conn,
+		db:       pg,
+		migrator: migrator,
+		rd:       rd,
 	}
 }
 
@@ -53,7 +60,7 @@ func (r *Repository) GetAll(ctx context.Context) ([]dto.Task, error) {
 func (r *Repository) CreateTask(ctx context.Context, req dto.TaskRequest) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return err
+		return nil
 	}
 	defer tx.Rollback(ctx)
 	now := time.Now()
@@ -72,9 +79,7 @@ func (r *Repository) CreateTask(ctx context.Context, req dto.TaskRequest) error 
 		Created: now,
 		Updated: now,
 	}
-	if err = r.updateCache(ctx, task, id); err != nil {
-		return err
-	}
+	r.updateCache(ctx, task, id)
 
 	return tx.Commit(ctx)
 }
@@ -90,14 +95,15 @@ func (r *Repository) DeleteTask(ctx context.Context, id int) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	r.clearCache(ctx, id)
 
 	return affected.RowsAffected(), tx.Commit(ctx)
 }
 
-func (r *Repository) UpdateTask(ctx context.Context, req dto.TaskRequest, id int) (bool, error) {
+func (r *Repository) UpdateTask(ctx context.Context, req dto.TaskRequest, id int) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer tx.Rollback(ctx)
 	now := time.Now()
@@ -107,7 +113,7 @@ func (r *Repository) UpdateTask(ctx context.Context, req dto.TaskRequest, id int
 		req.Title, req.Desc, req.Status, now, id)
 	created := time.Time{}
 	if err = row.Scan(&created); err != nil {
-		return false, err
+		return err
 	}
 	task := dto.Task{
 		Title:   req.Title,
@@ -116,8 +122,8 @@ func (r *Repository) UpdateTask(ctx context.Context, req dto.TaskRequest, id int
 		Created: created,
 		Updated: now,
 	}
-	cached := r.updateCache(ctx, task, id) != nil
-	return cached, tx.Commit(ctx)
+	r.updateCache(ctx, task, id)
+	return tx.Commit(ctx)
 }
 
 func (r *Repository) Get(c context.Context, id int) (*dto.Task, error) {
@@ -143,6 +149,10 @@ func (r *Repository) Get(c context.Context, id int) (*dto.Task, error) {
 	}
 	return t, err
 
+}
+
+func (r *Repository) clearCache(ctx context.Context, id int) error {
+	return r.rd.Del(ctx, strconv.Itoa(id)).Err()
 }
 
 type redisParser struct {

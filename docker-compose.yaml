@@ -1,23 +1,47 @@
+networks:
+  internal:
+    driver: bridge
+volumes:
+  postgres-go-data:
+
 services:
-  db:
-    image: postgres:15
-    env_file:
-      - docker.env
+  postgres:
+    image: arm64v8/postgres:17-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: db
+      TZ: "Europe/Moscow"
+    volumes:
+      - postgres-go-data:/var/lib/postgresql/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     ports:
-      - "5432:5432"
+      - "54321:5432"
+    networks:
+      - internal
   app:
     build: .
     env_file:
       docker.env
     ports:
       - "8080:8080"
+    networks:
+      - internal
+
     depends_on:
-      db:
+      postgres:
         required: true
         condition: service_started
       cache:
+        required: true
         condition: service_started
   cache:
     image: redis:7-alpine
+    env_file:
+      - docker.env
     ports:
       - "6379:6379"
+    networks:
+      - internal
